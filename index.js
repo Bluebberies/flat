@@ -10,6 +10,10 @@ function keyIdentity (key) {
 }
 
 export function flatten (target, opts) {
+  if (target === null || target === undefined) {
+    return target;
+  }
+
   opts = opts || {}
 
   const delimiter = opts.delimiter || '.'
@@ -17,8 +21,17 @@ export function flatten (target, opts) {
   const transformKey = opts.transformKey || keyIdentity
   const output = {}
 
+  const seenObjects = new WeakSet();
+
   function step (object, prev, currentDepth) {
     currentDepth = currentDepth || 1
+
+    if (seenObjects.has(object)) {
+      throw new Error("Circular reference detected");
+    }
+
+    seenObjects.add(object);
+
     Object.keys(object).forEach(function (key) {
       const value = object[key]
       const isarray = opts.safe && Array.isArray(value)
@@ -40,6 +53,13 @@ export function flatten (target, opts) {
 
       output[newKey] = value
     })
+
+    const symbols = Object.getOwnPropertySymbols(object);
+    symbols.forEach((symbol) => {
+      const value = object[symbol];
+      const newKey = prev ? prev + delimiter + String(symbol) : String(symbol);
+      output[newKey] = value;
+    });
   }
 
   step(target)
